@@ -166,31 +166,35 @@ export async function createIssue(
   issueTypeId: string,
   summary: string,
   description?: string,
+  assigneeAccountId?: string,
+  sprintId?: number,
 ): Promise<{ key: string }> {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}/rest/api/3/issue`;
 
-  const body: Record<string, unknown> = {
-    fields: {
-      project: { key: projectKey },
-      issuetype: { id: issueTypeId },
-      summary,
-      ...(description
-        ? {
-            description: {
-              type: "doc",
-              version: 1,
-              content: [
-                {
-                  type: "paragraph",
-                  content: [{ type: "text", text: description }],
-                },
-              ],
-            },
-          }
-        : {}),
-    },
+  const fields: Record<string, unknown> = {
+    project: { key: projectKey },
+    issuetype: { id: issueTypeId },
+    summary,
+    ...(description
+      ? {
+          description: {
+            type: "doc",
+            version: 1,
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: description }],
+              },
+            ],
+          },
+        }
+      : {}),
+    ...(assigneeAccountId ? { assignee: { accountId: assigneeAccountId } } : {}),
+    ...(sprintId ? { sprint: { id: sprintId } } : {}),
   };
+
+  const body: Record<string, unknown> = { fields };
 
   const response = await fetch(url, {
     method: "POST",
