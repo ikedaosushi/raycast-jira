@@ -10,12 +10,15 @@ interface GeneratedTicket {
   description: string;
 }
 
-export async function generateTicketContent(roughInput: string): Promise<GeneratedTicket> {
+export async function generateTicketContent(
+  roughInput: string,
+): Promise<GeneratedTicket> {
   const { openaiApiKey } = getPreferenceValues<Preferences>();
   const client = new OpenAI({ apiKey: openaiApiKey });
 
   const response = await client.chat.completions.create({
     model: "gpt-4o-mini",
+    response_format: { type: "json_object" },
     messages: [
       {
         role: "system",
@@ -40,7 +43,13 @@ Respond ONLY with valid JSON in this format: {"summary": "...", "description": "
     throw new Error("OpenAI returned empty response");
   }
 
-  const parsed = JSON.parse(content) as GeneratedTicket;
+  let parsed: GeneratedTicket;
+  try {
+    parsed = JSON.parse(content) as GeneratedTicket;
+  } catch {
+    throw new Error("Failed to parse AI response. Please try again.");
+  }
+
   if (!parsed.summary || !parsed.description) {
     throw new Error("OpenAI response missing summary or description");
   }

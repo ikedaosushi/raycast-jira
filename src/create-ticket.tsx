@@ -1,13 +1,32 @@
-import { Action, ActionPanel, Form, LocalStorage, showToast, Toast, useNavigation } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Form,
+  LocalStorage,
+  open,
+  popToRoot,
+  showToast,
+  Toast,
+  useNavigation,
+} from "@raycast/api";
 import { useCachedPromise } from "@raycast/utils";
 import { useEffect, useState } from "react";
-import { createIssue, getIssueTypesForProject, getIssueUrl, getProjects } from "./api";
+import {
+  createIssue,
+  getIssueTypesForProject,
+  getIssueUrl,
+  getProjects,
+} from "./api";
 import { generateTicketContent } from "./openai";
 
 const RECENT_PROJECT_KEY = "recentProjectKey";
 const RECENT_ISSUE_TYPE_ID = "recentIssueTypeId";
 
-function sortByRecent<T>(items: T[], getKey: (item: T) => string, recentKey: string | undefined): T[] {
+function sortByRecent<T>(
+  items: T[],
+  getKey: (item: T) => string,
+  recentKey: string | undefined,
+): T[] {
   if (!recentKey) return items;
   return [...items].sort((a, b) => {
     const aIsRecent = getKey(a) === recentKey;
@@ -25,8 +44,10 @@ function ConfirmTicketForm(props: {
   initialSummary: string;
   initialDescription: string;
 }) {
-  const { pop } = useNavigation();
-  const { data: projects, isLoading: isLoadingProjects } = useCachedPromise(getProjects, []);
+  const { data: projects, isLoading: isLoadingProjects } = useCachedPromise(
+    getProjects,
+    [],
+  );
   const [projectKey, setProjectKey] = useState(props.projectKey);
   const { data: issueTypes, isLoading: isLoadingTypes } = useCachedPromise(
     getIssueTypesForProject,
@@ -34,29 +55,41 @@ function ConfirmTicketForm(props: {
     { execute: !!projectKey },
   );
 
-  async function handleSubmit(values: { project: string; issueType: string; summary: string; description: string }) {
+  async function handleSubmit(values: {
+    project: string;
+    issueType: string;
+    summary: string;
+    description: string;
+  }) {
     if (!values.summary.trim()) {
-      await showToast({ style: Toast.Style.Failure, title: "Summary is required" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Summary is required",
+      });
       return;
     }
 
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Creating ticket..." });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Creating ticket...",
+    });
 
     try {
-      const result = await createIssue(values.project, values.issueType, values.summary, values.description || undefined);
+      const result = await createIssue(
+        values.project,
+        values.issueType,
+        values.summary,
+        values.description || undefined,
+      );
       await LocalStorage.setItem(RECENT_PROJECT_KEY, values.project);
       await LocalStorage.setItem(RECENT_ISSUE_TYPE_ID, values.issueType);
       toast.style = Toast.Style.Success;
       toast.title = `Created ${result.key}`;
       toast.primaryAction = {
         title: "Open in Jira",
-        onAction: () => {
-          const url = getIssueUrl(result.key);
-          import("@raycast/api").then(({ open }) => open(url));
-        },
+        onAction: () => open(getIssueUrl(result.key)),
       };
-      pop();
-      pop();
+      await popToRoot();
     } catch (error) {
       toast.style = Toast.Style.Failure;
       toast.title = "Failed to create ticket";
@@ -81,19 +114,35 @@ function ConfirmTicketForm(props: {
         onChange={(value) => setProjectKey(value)}
       >
         {(projects ?? []).map((project) => (
-          <Form.Dropdown.Item key={project.key} value={project.key} title={`${project.name} (${project.key})`} />
+          <Form.Dropdown.Item
+            key={project.key}
+            value={project.key}
+            title={`${project.name} (${project.key})`}
+          />
         ))}
       </Form.Dropdown>
 
-      <Form.Dropdown id="issueType" title="Issue Type" defaultValue={props.issueTypeId}>
+      <Form.Dropdown
+        id="issueType"
+        title="Issue Type"
+        defaultValue={props.issueTypeId}
+      >
         {(issueTypes ?? []).map((type) => (
           <Form.Dropdown.Item key={type.id} value={type.id} title={type.name} />
         ))}
       </Form.Dropdown>
 
-      <Form.TextField id="summary" title="Summary" defaultValue={props.initialSummary} />
+      <Form.TextField
+        id="summary"
+        title="Summary"
+        defaultValue={props.initialSummary}
+      />
 
-      <Form.TextArea id="description" title="Description" defaultValue={props.initialDescription} />
+      <Form.TextArea
+        id="description"
+        title="Description"
+        defaultValue={props.initialDescription}
+      />
     </Form>
   );
 }
@@ -107,8 +156,10 @@ export default function CreateTicket() {
 
   useEffect(() => {
     (async () => {
-      const savedProject = await LocalStorage.getItem<string>(RECENT_PROJECT_KEY);
-      const savedIssueType = await LocalStorage.getItem<string>(RECENT_ISSUE_TYPE_ID);
+      const savedProject =
+        await LocalStorage.getItem<string>(RECENT_PROJECT_KEY);
+      const savedIssueType =
+        await LocalStorage.getItem<string>(RECENT_ISSUE_TYPE_ID);
       if (savedProject) {
         setRecentProjectKey(savedProject);
         setProjectKey(savedProject);
@@ -117,19 +168,36 @@ export default function CreateTicket() {
     })();
   }, []);
 
-  const { data: projects, isLoading: isLoadingProjects } = useCachedPromise(getProjects, []);
+  const { data: projects, isLoading: isLoadingProjects } = useCachedPromise(
+    getProjects,
+    [],
+  );
 
-  const { data: issueTypes, isLoading: isLoadingTypes } = useCachedPromise(getIssueTypesForProject, [projectKey], {
-    execute: !!projectKey,
-  });
+  const { data: issueTypes, isLoading: isLoadingTypes } = useCachedPromise(
+    getIssueTypesForProject,
+    [projectKey],
+    {
+      execute: !!projectKey,
+    },
+  );
 
-  async function handleSubmit(values: { project: string; issueType: string; roughInput: string }) {
+  async function handleSubmit(values: {
+    project: string;
+    issueType: string;
+    roughInput: string;
+  }) {
     if (!values.roughInput.trim()) {
-      await showToast({ style: Toast.Style.Failure, title: "Input is required" });
+      await showToast({
+        style: Toast.Style.Failure,
+        title: "Input is required",
+      });
       return;
     }
 
-    const toast = await showToast({ style: Toast.Style.Animated, title: "Generating with AI..." });
+    const toast = await showToast({
+      style: Toast.Style.Animated,
+      title: "Generating with AI...",
+    });
 
     try {
       const generated = await generateTicketContent(values.roughInput);
@@ -167,15 +235,31 @@ export default function CreateTicket() {
         value={projectKey || undefined}
         onChange={(value) => setProjectKey(value)}
       >
-        {sortByRecent(projects ?? [], (p) => p.key, recentProjectKey).map((project) => (
-          <Form.Dropdown.Item key={project.key} value={project.key} title={`${project.name} (${project.key})`} />
-        ))}
+        {sortByRecent(projects ?? [], (p) => p.key, recentProjectKey).map(
+          (project) => (
+            <Form.Dropdown.Item
+              key={project.key}
+              value={project.key}
+              title={`${project.name} (${project.key})`}
+            />
+          ),
+        )}
       </Form.Dropdown>
 
-      <Form.Dropdown id="issueType" title="Issue Type" defaultValue={recentIssueTypeId}>
-        {sortByRecent(issueTypes ?? [], (t) => t.id, recentIssueTypeId).map((type) => (
-          <Form.Dropdown.Item key={type.id} value={type.id} title={type.name} />
-        ))}
+      <Form.Dropdown
+        id="issueType"
+        title="Issue Type"
+        defaultValue={recentIssueTypeId}
+      >
+        {sortByRecent(issueTypes ?? [], (t) => t.id, recentIssueTypeId).map(
+          (type) => (
+            <Form.Dropdown.Item
+              key={type.id}
+              value={type.id}
+              title={type.name}
+            />
+          ),
+        )}
       </Form.Dropdown>
 
       <Form.TextArea
