@@ -1,0 +1,77 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "jira-tools",
+  "title": "Jira Tools",
+  "description": "Search Jira tickets and create new tickets",
+  "icon": "extension-icon.png",
+  "author": "ikedaosushi",
+  "categories": [
+    "Productivity"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "search-tickets",
+      "title": "Search Tickets",
+      "description": "Search Jira tickets by keyword",
+      "mode": "view"
+    },
+    {
+      "name": "create-ticket",
+      "title": "Create Ticket",
+      "description": "Create a new Jira ticket",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "domain",
+      "title": "Jira Domain",
+      "description": "Your Jira domain (e.g. your-company.atlassian.net)",
+      "type": "textfield",
+      "required": true
+    },
+    {
+      "name": "email",
+      "title": "Email",
+      "description": "Your Atlassian account email",
+      "type": "textfield",
+      "required": true
+    },
+    {
+      "name": "apiToken",
+      "title": "API Token",
+      "description": "Your Atlassian API token (https://id.atlassian.com/manage-profile/security/api-tokens)",
+      "type": "password",
+      "required": true
+    },
+    {
+      "name": "openaiApiKey",
+      "title": "OpenAI API Key",
+      "description": "OpenAI API key for AI-assisted ticket creation",
+      "type": "password",
+      "required": true
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.104.0",
+    "@raycast/utils": "^1.19.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^6.22.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^8.57.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
