@@ -38,6 +38,17 @@ export interface JiraIssueType {
   description: string;
 }
 
+export interface JiraBoard {
+  id: number;
+  name: string;
+}
+
+export interface JiraSprint {
+  id: number;
+  name: string;
+  state: string;
+}
+
 function getAuthHeader(): { Authorization: string; "Content-Type": string } {
   const { email, apiToken } = getPreferenceValues<Preferences>();
   const encoded = Buffer.from(`${email}:${apiToken}`).toString("base64");
@@ -53,11 +64,23 @@ function getBaseUrl(): string {
   return d.startsWith("http") ? d : `https://${d}`;
 }
 
-export async function searchIssues(query: string): Promise<JiraIssue[]> {
+export async function searchIssues(
+  query: string,
+  assigneeFilter: "currentUser" | "all" | "unassigned" = "currentUser",
+): Promise<JiraIssue[]> {
   const baseUrl = getBaseUrl();
-  const jql = query.trim()
-    ? `text ~ "${query.trim()}" ORDER BY updated DESC`
-    : "assignee = currentUser() ORDER BY updated DESC";
+  const conditions: string[] = [];
+  if (query.trim()) {
+    conditions.push(`text ~ "${query.trim()}"`);
+  }
+  if (assigneeFilter === "currentUser") {
+    conditions.push("assignee = currentUser()");
+  } else if (assigneeFilter === "unassigned") {
+    conditions.push("assignee is EMPTY");
+  }
+  const jql =
+    (conditions.length > 0 ? conditions.join(" AND ") : "") +
+    " ORDER BY updated DESC";
   const fields =
     "summary,status,assignee,issuetype,priority,project,created,updated";
   const url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&maxResults=50&fields=${fields}`;
@@ -228,6 +251,42 @@ export async function assignIssue(
     const errorBody = await response.text();
     throw new Error(`Jira API error: ${response.status} ${errorBody}`);
   }
+}
+
+export async function getBoardsForProject(
+  projectKey: string,
+): Promise<JiraBoard[]> {
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/rest/agile/1.0/board?projectKeyOrId=${encodeURIComponent(projectKey)}&maxResults=50`;
+
+  const response = await fetch(url, { headers: getAuthHeader() });
+
+  if (!response.ok) {
+    throw new Error(
+      `Jira API error: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const data = (await response.json()) as { values: JiraBoard[] };
+  return data.values;
+}
+
+export async function getSprintsForBoard(
+  boardId: number,
+): Promise<JiraSprint[]> {
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/rest/agile/1.0/board/${boardId}/sprint?state=active,future&maxResults=50`;
+
+  const response = await fetch(url, { headers: getAuthHeader() });
+
+  if (!response.ok) {
+    throw new Error(
+      `Jira API error: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  const data = (await response.json()) as { values: JiraSprint[] };
+  return data.values;
 }
 
 export function getIssueUrl(issueKey: string): string {
