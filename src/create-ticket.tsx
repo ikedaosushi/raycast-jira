@@ -13,9 +13,12 @@ import { useCachedPromise } from "@raycast/utils";
 import { useEffect, useState } from "react";
 import {
   createIssue,
+  getAssignableUsers,
+  getBoardsForProject,
   getIssueTypesForProject,
   getIssueUrl,
   getProjects,
+  getSprintsForBoard,
 } from "./api";
 import { generateTicketContent } from "./openai";
 
@@ -43,6 +46,8 @@ function ConfirmTicketForm(props: {
   issueTypeId: string;
   initialSummary: string;
   initialDescription: string;
+  initialAssignee: string;
+  initialSprint: string;
 }) {
   const { data: projects, isLoading: isLoadingProjects } = useCachedPromise(
     getProjects,
@@ -55,11 +60,40 @@ function ConfirmTicketForm(props: {
     { execute: !!projectKey },
   );
 
+  const { data: assignableUsers, isLoading: isLoadingUsers } = useCachedPromise(
+    getAssignableUsers,
+    [projectKey],
+    { execute: !!projectKey },
+  );
+
+  const { data: boards } = useCachedPromise(
+    getBoardsForProject,
+    [projectKey],
+    { execute: !!projectKey },
+  );
+
+  const [sprints, setSprints] = useState<{ id: number; name: string; state: string }[]>([]);
+  const [isLoadingSprints, setIsLoadingSprints] = useState(false);
+
+  useEffect(() => {
+    if (!boards || boards.length === 0) {
+      setSprints([]);
+      return;
+    }
+    setIsLoadingSprints(true);
+    Promise.all(boards.map((board) => getSprintsForBoard(board.id)))
+      .then((results) => setSprints(results.flat()))
+      .catch(() => setSprints([]))
+      .finally(() => setIsLoadingSprints(false));
+  }, [boards]);
+
   async function handleSubmit(values: {
     project: string;
     issueType: string;
     summary: string;
     description: string;
+    assignee: string;
+    sprint: string;
   }) {
     if (!values.summary.trim()) {
       await showToast({
@@ -80,6 +114,8 @@ function ConfirmTicketForm(props: {
         values.issueType,
         values.summary,
         values.description || undefined,
+        values.assignee || undefined,
+        values.sprint ? Number(values.sprint) : undefined,
       );
       await LocalStorage.setItem(RECENT_PROJECT_KEY, values.project);
       await LocalStorage.setItem(RECENT_ISSUE_TYPE_ID, values.issueType);
@@ -99,7 +135,7 @@ function ConfirmTicketForm(props: {
 
   return (
     <Form
-      isLoading={isLoadingProjects || isLoadingTypes}
+      isLoading={isLoadingProjects || isLoadingTypes || isLoadingUsers || isLoadingSprints}
       navigationTitle="Confirm & Create Ticket"
       actions={
         <ActionPanel>
@@ -143,6 +179,37 @@ function ConfirmTicketForm(props: {
         title="Description"
         defaultValue={props.initialDescription}
       />
+
+      <Form.Dropdown
+        id="assignee"
+        title="Assignee"
+        defaultValue={props.initialAssignee}
+      >
+        <Form.Dropdown.Item key="unassigned" value="" title="Unassigned" />
+        {(assignableUsers ?? []).map((user) => (
+          <Form.Dropdown.Item
+            key={user.accountId}
+            value={user.accountId}
+            title={user.displayName}
+            icon={user.avatarUrls["48x48"]}
+          />
+        ))}
+      </Form.Dropdown>
+
+      <Form.Dropdown
+        id="sprint"
+        title="Sprint"
+        defaultValue={props.initialSprint}
+      >
+        <Form.Dropdown.Item key="none" value="" title="None" />
+        {sprints.map((sprint) => (
+          <Form.Dropdown.Item
+            key={String(sprint.id)}
+            value={String(sprint.id)}
+            title={`${sprint.name} (${sprint.state})`}
+          />
+        ))}
+      </Form.Dropdown>
     </Form>
   );
 }
@@ -181,10 +248,39 @@ export default function CreateTicket() {
     },
   );
 
+  const { data: assignableUsers, isLoading: isLoadingUsers } = useCachedPromise(
+    getAssignableUsers,
+    [projectKey],
+    { execute: !!projectKey },
+  );
+
+  const { data: boards } = useCachedPromise(
+    getBoardsForProject,
+    [projectKey],
+    { execute: !!projectKey },
+  );
+
+  const [sprints, setSprints] = useState<{ id: number; name: string; state: string }[]>([]);
+  const [isLoadingSprints, setIsLoadingSprints] = useState(false);
+
+  useEffect(() => {
+    if (!boards || boards.length === 0) {
+      setSprints([]);
+      return;
+    }
+    setIsLoadingSprints(true);
+    Promise.all(boards.map((board) => getSprintsForBoard(board.id)))
+      .then((results) => setSprints(results.flat()))
+      .catch(() => setSprints([]))
+      .finally(() => setIsLoadingSprints(false));
+  }, [boards]);
+
   async function handleSubmit(values: {
     project: string;
     issueType: string;
     roughInput: string;
+    assignee: string;
+    sprint: string;
   }) {
     if (!values.roughInput.trim()) {
       await showToast({
@@ -210,6 +306,8 @@ export default function CreateTicket() {
           issueTypeId={values.issueType}
           initialSummary={generated.summary}
           initialDescription={generated.description}
+          initialAssignee={values.assignee}
+          initialSprint={values.sprint}
         />,
       );
     } catch (error) {
@@ -221,7 +319,7 @@ export default function CreateTicket() {
 
   return (
     <Form
-      isLoading={isLoadingProjects || isLoadingTypes}
+      isLoading={isLoadingProjects || isLoadingTypes || isLoadingUsers || isLoadingSprints}
       navigationTitle="Create Ticket with AI"
       actions={
         <ActionPanel>
@@ -260,6 +358,29 @@ export default function CreateTicket() {
             />
           ),
         )}
+      </Form.Dropdown>
+
+      <Form.Dropdown id="assignee" title="Assignee" defaultValue="">
+        <Form.Dropdown.Item key="unassigned" value="" title="Unassigned" />
+        {(assignableUsers ?? []).map((user) => (
+          <Form.Dropdown.Item
+            key={user.accountId}
+            value={user.accountId}
+            title={user.displayName}
+            icon={user.avatarUrls["48x48"]}
+          />
+        ))}
+      </Form.Dropdown>
+
+      <Form.Dropdown id="sprint" title="Sprint" defaultValue="">
+        <Form.Dropdown.Item key="none" value="" title="None" />
+        {sprints.map((sprint) => (
+          <Form.Dropdown.Item
+            key={String(sprint.id)}
+            value={String(sprint.id)}
+            title={`${sprint.name} (${sprint.state})`}
+          />
+        ))}
       </Form.Dropdown>
 
       <Form.TextArea
