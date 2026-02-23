@@ -190,7 +190,9 @@ export async function createIssue(
           },
         }
       : {}),
-    ...(assigneeAccountId ? { assignee: { accountId: assigneeAccountId } } : {}),
+    ...(assigneeAccountId
+      ? { assignee: { accountId: assigneeAccountId } }
+      : {}),
     ...(sprintId ? { sprint: { id: sprintId } } : {}),
   };
 
@@ -236,6 +238,21 @@ export async function getAssignableUsers(
   }
 
   return allUsers;
+}
+
+export async function getCurrentUser(): Promise<JiraUser> {
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/rest/api/3/myself`;
+
+  const response = await fetch(url, { headers: getAuthHeader() });
+
+  if (!response.ok) {
+    throw new Error(
+      `Jira API error: ${response.status} ${response.statusText}`,
+    );
+  }
+
+  return (await response.json()) as JiraUser;
 }
 
 export async function assignIssue(
