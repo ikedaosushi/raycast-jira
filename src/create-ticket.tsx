@@ -236,6 +236,7 @@ export default function CreateTicket() {
   const [recentIssueTypeId, setRecentIssueTypeId] = useState<string>();
   const [recentAssigneeId, setRecentAssigneeId] = useState<string>();
   const [currentUserId, setCurrentUserId] = useState<string>();
+  const [assigneeId, setAssigneeId] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -250,10 +251,16 @@ export default function CreateTicket() {
         setProjectKey(savedProject);
       }
       if (savedIssueType) setRecentIssueTypeId(savedIssueType);
-      if (savedAssignee) setRecentAssigneeId(savedAssignee);
+      if (savedAssignee) {
+        setRecentAssigneeId(savedAssignee);
+        setAssigneeId(savedAssignee);
+      }
       try {
         const me = await getCurrentUser();
         setCurrentUserId(me.accountId);
+        if (!savedAssignee) {
+          setAssigneeId(me.accountId);
+        }
       } catch {
         // ignore - will default to unassigned
       }
@@ -287,6 +294,7 @@ export default function CreateTicket() {
     { id: number; name: string; state: string }[]
   >([]);
   const [isLoadingSprints, setIsLoadingSprints] = useState(false);
+  const [sprintId, setSprintId] = useState<string>("");
 
   useEffect(() => {
     if (!boards || boards.length === 0) {
@@ -295,14 +303,15 @@ export default function CreateTicket() {
     }
     setIsLoadingSprints(true);
     Promise.all(boards.map((board) => getSprintsForBoard(board.id)))
-      .then((results) => setSprints(results.flat()))
+      .then((results) => {
+        const allSprints = results.flat();
+        setSprints(allSprints);
+        const active = allSprints.find((s) => s.state === "active");
+        if (active) setSprintId(String(active.id));
+      })
       .catch(() => setSprints([]))
       .finally(() => setIsLoadingSprints(false));
   }, [boards]);
-
-  const defaultAssignee = recentAssigneeId ?? currentUserId ?? "";
-  const activeSprint = sprints.find((s) => s.state === "active");
-  const defaultSprint = activeSprint ? String(activeSprint.id) : "";
 
   async function handleSubmit(values: {
     project: string;
@@ -397,7 +406,8 @@ export default function CreateTicket() {
       <Form.Dropdown
         id="assignee"
         title="Assignee"
-        defaultValue={defaultAssignee}
+        value={assigneeId}
+        onChange={(value) => setAssigneeId(value)}
       >
         <Form.Dropdown.Item key="unassigned" value="" title="Unassigned" />
         {sortByRecent(
@@ -414,7 +424,12 @@ export default function CreateTicket() {
         ))}
       </Form.Dropdown>
 
-      <Form.Dropdown id="sprint" title="Sprint" defaultValue={defaultSprint}>
+      <Form.Dropdown
+        id="sprint"
+        title="Sprint"
+        value={sprintId}
+        onChange={(value) => setSprintId(value)}
+      >
         <Form.Dropdown.Item key="none" value="" title="None" />
         {sprints.map((sprint) => (
           <Form.Dropdown.Item

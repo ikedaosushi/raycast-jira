@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="80" fill="#0052CC"/>
+  <path d="M372 160H264c-8.8 0-16 7.2-16 16v24c0 8.8 7.2 16 16 16h108c8.8 0 16-7.2 16-16v-24c0-8.8-7.2-16-16-16z" fill="white"/>
+  <path d="M372 232H264c-8.8 0-16 7.2-16 16v24c0 8.8 7.2 16 16 16h108c8.8 0 16-7.2 16-16v-24c0-8.8-7.2-16-16-16z" fill="white" opacity="0.7"/>
+  <path d="M372 304H264c-8.8 0-16 7.2-16 16v24c0 8.8 7.2 16 16 16h108c8.8 0 16-7.2 16-16v-24c0-8.8-7.2-16-16-16z" fill="white" opacity="0.4"/>
+  <circle cx="188" cy="188" r="20" fill="white"/>
+  <rect x="173" y="249" width="30" height="30" rx="4" fill="white" opacity="0.7"/>
+  <polygon points="188,308 204,340 172,340" fill="white" opacity="0.4"/>
+</svg>

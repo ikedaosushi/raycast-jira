@@ -30,6 +30,7 @@ export interface JiraProject {
   id: string;
   key: string;
   name: string;
+  projectTypeKey?: string;
 }
 
 export interface JiraIssueType {
@@ -66,7 +67,8 @@ function getBaseUrl(): string {
 
 export async function searchIssues(
   query: string,
-  assigneeFilter: "currentUser" | "all" | "unassigned" = "currentUser",
+  assigneeFilter: string = "currentUser",
+  projectKey?: string,
 ): Promise<JiraIssue[]> {
   const baseUrl = getBaseUrl();
   const conditions: string[] = [];
@@ -77,6 +79,12 @@ export async function searchIssues(
     conditions.push("assignee = currentUser()");
   } else if (assigneeFilter === "unassigned") {
     conditions.push("assignee is EMPTY");
+  } else if (assigneeFilter !== "all") {
+    // accountId for a specific user
+    conditions.push(`assignee = "${assigneeFilter}"`);
+  }
+  if (projectKey && projectKey !== "all") {
+    conditions.push(`project = "${projectKey}"`);
   }
   const jql =
     (conditions.length > 0 ? conditions.join(" AND ") : "") +
@@ -310,7 +318,47 @@ export async function getSprintsForBoard(
   return data.values;
 }
 
+export async function searchUsers(): Promise<JiraUser[]> {
+  const baseUrl = getBaseUrl();
+  const allUsers: JiraUser[] = [];
+  let startAt = 0;
+  const maxResults = 1000;
+
+  while (true) {
+    const url = `${baseUrl}/rest/api/3/users/search?startAt=${startAt}&maxResults=${maxResults}`;
+    const response = await fetch(url, { headers: getAuthHeader() });
+
+    if (!response.ok) {
+      throw new Error(
+        `Jira API error: ${response.status} ${response.statusText}`,
+      );
+    }
+
+    const users = (await response.json()) as JiraUser[];
+    allUsers.push(...users.filter((u) => u.displayName && u.accountId));
+
+    if (users.length < maxResults) break;
+    startAt += maxResults;
+  }
+
+  return allUsers.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 export function getIssueUrl(issueKey: string): string {
   const baseUrl = getBaseUrl();
   return `${baseUrl}/browse/${issueKey}`;
+}
+
+export async function getProjectUrl(
+  projectKey: string,
+  projectTypeKey?: string,
+): Promise<string> {
+  const baseUrl = getBaseUrl();
+  if (projectTypeKey === "service_desk") {
+    return `${baseUrl}/jira/servicedesk/projects/${projectKey}`;
+  }
+  if (projectTypeKey === "business") {
+    return `${baseUrl}/jira/core/projects/${projectKey}/summary`;
+  }
+  return `${baseUrl}/jira/software/projects/${projectKey}/summary`;
 }

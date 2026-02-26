@@ -21,6 +21,12 @@
       "title": "Create Ticket",
       "description": "Create a new Jira ticket",
       "mode": "view"
+    },
+    {
+      "name": "open-project",
+      "title": "Open Project",
+      "description": "Open a Jira project in the browser",
+      "mode": "view"
     }
   ],
   "preferences": [
